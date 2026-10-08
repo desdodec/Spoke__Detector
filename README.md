@@ -1,15 +1,8 @@
 # Spoke Detector
 
-Audio analysis project for detecting bicycle-spoke impacts created by a cable tie striking the spokes while the bicycle is pushed.
+Audio analysis project for detecting bicycle-spoke impacts created by a plastic cable tie striking the spokes while a bicycle is pushed.
 
-The detector learns a profile from a short WAV containing a known number of genuine spoke hits, then applies that profile to a longer recording. It deliberately does **not** depend on a fixed walking speed or a fixed click pitch.
-
-## Current inputs
-
-- `short_sample/7_clicks.wav` — training sample containing exactly 7 genuine spoke hits
-- `audio/Bike_test.wav` — longer recording to analyse
-
-Both WAV files should use the same sample rate.
+The detector is designed to tolerate changing walking speed, acceleration/deceleration, variable click pitch, and real outdoor noise. Version 5 uses a recording-adaptive transient-prominence split instead of requiring every future recording to match the exact spectral character of the original cable tie.
 
 ## Install
 
@@ -19,48 +12,61 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-On Windows, activate the environment with:
+On Windows:
 
 ```powershell
 .venv\Scripts\activate
 ```
 
-## Run
+Tkinter is also required for the calibration GUI. It is normally included with desktop Python distributions.
 
-From the repository root:
+## Cable-tie calibration GUI
 
-```bash
-python src/detector.py
-```
-
-The default run assumes 7 training hits. To use a future training file with a different known count:
+Run calibration whenever the plastic cable tie is replaced, moved, or sounds noticeably different:
 
 ```bash
-python src/detector.py --training short_sample/20_clicks.wav --training-hits 20
+python src/calibrate.py
 ```
 
-## Outputs
+The GUI provides file/folder choosers and the calibration procedure.
 
-The detector writes these files to `output/`:
+Recommended procedure:
 
-- `detections.csv` — one row per accepted hit, including timestamp, confidence, profile distance, and onset strength
-- `review_clicks.wav` — the original recording with an obvious synthetic marker click mixed at every detected spoke hit
-- `detected_hits.wav` — all accepted hit excerpts concatenated with short gaps for rapid listening
+1. Fit the cable tie in its normal operating position and keep its protruding length reasonably consistent.
+2. Lift the wheel so it can rotate freely.
+3. Use the valve or a visible tyre mark to count exact complete wheel revolutions.
+4. Record a calibration WAV containing a known number of complete revolutions. Include slow, medium and faster rotation.
+5. In the GUI, choose the WAV and output folder, enter the wheel's spoke count and number of completed revolutions, then click **RUN CALIBRATION**.
+6. The known physical count is `spokes × revolutions`.
 
-Generated output files are ignored by Git.
+The calibration detector does **not** force itself to return the expected number of hits. It independently finds the recording's natural high-prominence transient cluster, then checks whether that detected count agrees with the physical count. It also checks signal separation and local interval plausibility.
 
-## How version 1 works
+A successful calibration produces:
 
-1. Spectral-flux onset detection automatically locates the known number of hits in the training WAV.
-2. Each training hit is represented by amplitude-normalised spectral-band energy, short-time envelope shape, zero-crossing rate, spectral centroid, and spectral bandwidth.
-3. The long recording is scanned for transient candidates.
-4. Each candidate is compared with the training hits using a normalised feature-space distance.
-5. The acceptance threshold is learned from leave-one-out variation inside the training sample and deliberately widened for high recall.
+- `calibration_profile.json` — session calibration settings, learned feature statistics and quality metrics
+- `calibration_detections.csv` — accepted calibration events
+- `calibration_review.wav` — background-suppressed review audio with a distinct 8 kHz marker at every accepted hit
 
-Timing between successive hits is not required for classification, so changes in walking speed, acceleration, deceleration, and uneven pushing do not directly break the detector.
+The GUI reports **CALIBRATION PASS** or **CALIBRATION FAIL**. A failed calibration should be repeated before participant recording.
 
-## Current baseline
+For robust calibration, prefer at least 100 physical spoke strikes. For example, a 32-spoke wheel rotated five complete revolutions gives 160 expected impacts.
 
-Using the supplied 7-hit training file, the automatic profiler recovers all seven training onsets. On the supplied 78.2-second `Bike_test.wav`, the current high-recall baseline produces 626 candidate detections.
+## Current detector
 
-That number is **not yet ground truth**. The next validation step is to listen to `review_clicks.wav`, identify false positives and missed genuine hits, and use those errors to improve the classifier. Difficult negative examples will be especially useful for version 2.
+Version 5:
+
+```bash
+python src/detector_v5.py --input "audio/Bike test 2.wav" --output-dir output_v5
+```
+
+Version 5 keeps the high-pass/onset machinery from v4 but adapts its prominence threshold to each target recording. Spectral distance is retained as diagnostic metadata rather than used as a hard cross-recording rejection rule.
+
+The detector does not assume a fixed walking speed or a fixed spoke period.
+
+## Validation workflow
+
+A calibration PASS should be followed by a short real-world pavement validation before participant recording. That validation should include normal bike handling and realistic environmental noise such as traffic. Calibration and validation should remain separate from participant data so detector quality is not judged on the same recording used to tune it.
+
+## Research interpretation
+
+The spoke-click event train measures bicycle wheel motion and is therefore a proxy for participant forward-movement rhythm. It should not be described as direct heel-strike/toe-off gait measurement unless that relationship is independently validated.
