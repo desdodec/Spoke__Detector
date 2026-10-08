@@ -4,6 +4,10 @@ on:
   push:
     paths:
       - '.github/workflows/test-bike2.yml'
+      - 'src/diagnose_candidates.py'
+      - 'src/detector_v4.py'
+      - 'short_sample/7_clicks.wav'
+      - 'audio/Bike test 2.wav'
   workflow_dispatch:
 
 jobs:
@@ -29,6 +33,14 @@ jobs:
             --input "audio/Bike test 2.wav" \
             --output-dir output_test2
 
+      - name: Diagnose all onset candidates
+        run: |
+          python src/diagnose_candidates.py \
+            --training short_sample/7_clicks.wav \
+            --training-hits 7 \
+            --input "audio/Bike test 2.wav" \
+            --output output_test2/candidate_diagnostics.csv
+
       - name: Summarize detections
         run: |
           python - <<'PY'
@@ -50,5 +62,5 @@ jobs:
       - name: Upload review outputs
         uses: actions/upload-artifact@v4
         with:
-          name: bike-test-2-v4
+          name: bike-test-2-v4-diagnostics
           path: output_test2/
