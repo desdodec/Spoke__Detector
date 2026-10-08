@@ -1,0 +1,54 @@
+name: Bike Test 2 Stress Test
+
+on:
+  push:
+    paths:
+      - '.github/workflows/test-bike2.yml'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run v4 detector on Bike test 2
+        run: |
+          python src/detector_v4.py \
+            --training short_sample/7_clicks.wav \
+            --training-hits 7 \
+            --input "audio/Bike test 2.wav" \
+            --output-dir output_test2
+
+      - name: Summarize detections
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          p = Path('output_test2/detections_v4.csv')
+          rows = list(csv.DictReader(p.open()))
+          print(f'TOTAL_DETECTIONS={len(rows)}')
+          if rows:
+              times = [float(r['timestamp_seconds']) for r in rows]
+              print(f'FIRST_DETECTION={times[0]:.3f}')
+              print(f'LAST_DETECTION={times[-1]:.3f}')
+              recovered = sum(r['source'] == 'sequence_recovery' for r in rows)
+              merged = sum('merged' in r['source'] for r in rows)
+              print(f'RECOVERED={recovered}')
+              print(f'MERGED={merged}')
+          PY
+
+      - name: Upload review outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bike-test-2-v4
+          path: output_test2/
