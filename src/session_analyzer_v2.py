@@ -15,6 +15,9 @@ from typing import Any
 
 import session_analyzer as legacy
 
+if not hasattr(legacy, "_ORIGINAL_ANALYSE_SESSION"):
+    legacy._ORIGINAL_ANALYSE_SESSION = legacy.analyse_session
+
 
 def geometry_metrics(result: legacy.SessionResult, profile: dict[str, Any] | None) -> dict[str, Any]:
     spoke_count = (profile or {}).get("spoke_count")
@@ -179,6 +182,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    if not hasattr(legacy, "_ORIGINAL_ANALYSE_SESSION"):
-        legacy._ORIGINAL_ANALYSE_SESSION = legacy.analyse_session
     main()
