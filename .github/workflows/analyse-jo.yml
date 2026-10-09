@@ -1,0 +1,39 @@
+name: Analyse Jo Grant
+
+on:
+  push:
+    paths:
+      - '.github/workflows/analyse-jo.yml'
+  workflow_dispatch:
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Run session analyser
+        run: |
+          mkdir -p output_jo
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'src')
+          from session_analyzer import analyse_session
+          result, csv_path, review_path, summary_path = analyse_session(
+              Path('audio/Jo_Grant_Mono.wav'),
+              Path('output_jo'),
+              Path('calibration/calibration_profile.json'),
+          )
+          print(result)
+          print(csv_path)
+          print(review_path)
+          print(summary_path)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jo-grant-session-analysis
+          path: output_jo/
