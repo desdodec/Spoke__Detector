@@ -1,0 +1,35 @@
+name: Generate Human Review WAVs
+on:
+  push:
+    paths:
+      - '.github/workflows/generate-human-review-wavs.yml'
+  workflow_dispatch:
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Generate Bike Test 2 and Jo Grant reviews
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from pathlib import Path
+          import session_analyzer_v2 as s
+
+          profile = Path('calibration/calibration_profile.json')
+          jobs = [
+              (Path('audio/Bike test 2.wav'), Path('human_review/bike_test_2')),
+              (Path('audio/Jo_Grant_Mono.wav'), Path('human_review/jo_grant')),
+          ]
+          for wav, out in jobs:
+              result, csv_path, review_path, summary_path = s.analyse_session(wav, out, profile)
+              print(wav, result.detected_hits, review_path, out / 'session_isolated.wav')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: human-review-wavs
+          path: human_review/
