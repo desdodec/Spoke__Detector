@@ -3,6 +3,10 @@ on:
   push:
     paths:
       - '.github/workflows/generate-human-review-wavs.yml'
+      - 'audio/Jo_Grant.wav'
+      - 'audio/Bike test 2.wav'
+      - 'src/session_analyzer.py'
+      - 'src/session_analyzer_v2.py'
   workflow_dispatch:
 
 jobs:
@@ -10,6 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Verify LFS audio files
+        run: |
+          git lfs ls-files
+          file 'audio/Bike test 2.wav' 'audio/Jo_Grant.wav'
+          ls -lh 'audio/Bike test 2.wav' 'audio/Jo_Grant.wav'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -23,7 +34,7 @@ jobs:
           profile = Path('calibration/calibration_profile.json')
           jobs = [
               (Path('audio/Bike test 2.wav'), Path('human_review/bike_test_2')),
-              (Path('audio/Jo_Grant_Mono.wav'), Path('human_review/jo_grant')),
+              (Path('audio/Jo_Grant.wav'), Path('human_review/jo_grant')),
           ]
           for wav, out in jobs:
               result, csv_path, review_path, summary_path = s.analyse_session(wav, out, profile)
