@@ -4,6 +4,11 @@ on:
   push:
     paths:
       - '.github/workflows/analyse-jo.yml'
+      - 'src/session_analyzer.py'
+      - 'src/detector_v4.py'
+      - 'src/detector_v5.py'
+      - 'src/calibrate.py'
+      - 'calibration/calibration_profile.json'
   workflow_dispatch:
 
 jobs:
@@ -32,6 +37,10 @@ jobs:
           print(csv_path)
           print(review_path)
           print(summary_path)
+          isolated = Path('output_jo/session_isolated.wav')
+          assert isolated.exists(), isolated
+          assert 620 <= result.detected_hits <= 740, result.detected_hits
+          assert result.effective_prominence_threshold >= result.calibration_prominence_threshold
           PY
       - uses: actions/upload-artifact@v4
         with:
