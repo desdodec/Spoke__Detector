@@ -1,0 +1,29 @@
+name: Evaluate Indoor Click Model
+
+on:
+  push:
+    paths:
+      - 'src/evaluate_indoor_model.py'
+      - 'src/detector_v4.py'
+      - 'src/detector_v5.py'
+      - 'audio/Spoke test new.wav'
+      - 'audio/Bike test 2.wav'
+      - 'audio/Jo_Grant_Mono.wav'
+      - '.github/workflows/evaluate-indoor-model.yml'
+  workflow_dispatch:
+
+jobs:
+  analyse:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Run indoor model evaluation
+        run: python src/evaluate_indoor_model.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: indoor-model-evaluation
+          path: output_indoor_model_eval/
