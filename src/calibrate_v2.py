@@ -22,6 +22,10 @@ import calibrate as legacy
 
 DEFAULT_SPOKES = 36
 
+# Keep a stable reference even when this module is imported by a test/script.
+if not hasattr(legacy, "_ORIGINAL_CALIBRATE"):
+    legacy._ORIGINAL_CALIBRATE = legacy.calibrate
+
 
 def calibrate(
     wav_path: Path,
@@ -36,8 +40,8 @@ def calibrate(
 ):
     """Run legacy calibration, then apply non-circular acceptance logic.
 
-    The detector still operates independently.  The known physical count is used
-    to assess count accuracy, but *not* to rescue a weak natural prominence split.
+    The detector still operates independently. The known physical count is used
+    to assess count accuracy, but not to rescue a weak natural prominence split.
     """
     metrics, hits, profile_path, csv_path, review_path = legacy._ORIGINAL_CALIBRATE(
         wav_path=wav_path,
@@ -51,9 +55,9 @@ def calibrate(
         max_interval_outlier_pct=max_interval_outlier_pct,
     )
 
-    # Important methodological correction: expected_boundary_ratio uses the known
-    # expected N and therefore must be diagnostic-only.  PASS separation is based
-    # solely on the natural acoustic split discovered without knowing N.
+    # Methodological correction: expected_boundary_ratio uses the known expected
+    # N and therefore must be diagnostic-only. PASS separation is based solely on
+    # the natural acoustic split discovered without knowing N.
     metrics.pass_separation = bool(metrics.natural_split_ratio >= min_separation_ratio)
     metrics.passed = bool(metrics.pass_count and metrics.pass_separation and metrics.pass_timing)
 
@@ -93,8 +97,6 @@ class CalibrationApp(legacy.CalibrationApp):
         super().__init__()
         self.title("Spoke Detector — 36-Spoke Calibration")
         self.spokes_var.set(str(DEFAULT_SPOKES))
-
-        # Put a concise geometry reminder at the top of the results pane.
         self._set_result(
             "Ready for controlled calibration.\n\n"
             "Confirmed wheel geometry: 36 spokes = 36 expected clicks per full revolution.\n"
@@ -103,14 +105,11 @@ class CalibrationApp(legacy.CalibrationApp):
 
 
 def main() -> None:
+    # The inherited GUI calls legacy.calibrate; route that call through v2.
+    legacy.calibrate = calibrate
     app = CalibrationApp()
     app.mainloop()
 
 
 if __name__ == "__main__":
-    # Preserve a handle to the legacy implementation before monkey-patching the
-    # function that the inherited GUI calls.
-    if not hasattr(legacy, "_ORIGINAL_CALIBRATE"):
-        legacy._ORIGINAL_CALIBRATE = legacy.calibrate
-    legacy.calibrate = calibrate
     main()
