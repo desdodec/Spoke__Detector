@@ -5,9 +5,16 @@
   "profile_kind": "PROVISIONAL_TEST_ONLY",
   "source_wav": "audio/Bike test 2.wav",
   "source_description": "Provisional compatibility profile derived from the Bike Test 2 recording and the manually reviewed v5 detection result. This is NOT a physically ground-truthed wheel-revolution calibration.",
-  "spoke_count": null,
+  "spoke_count": 36,
   "wheel_revolutions": null,
   "expected_hits": null,
+  "geometry": {
+    "spoke_count": 36,
+    "spoke_pairs": 18,
+    "expected_clicks_per_revolution": 36,
+    "assumption": "one cable-tie click per spoke crossing",
+    "detection_use": "diagnostic_only_not_count_forcing"
+  },
   "analysis": {
     "highpass_hz": 250.0,
     "min_gap_ms": 25.0,
@@ -26,5 +33,5 @@
     "physical_ground_truth": false,
     "note": "673 is the v5 adaptive detection count from Bike Test 2. It is not an independently known spoke-strike count."
   },
-  "notes": "TEST PROFILE ONLY. Created so session_analyzer.py can be exercised before a formal calibration recording exists. Replace this file with a genuine calibration_profile.json produced by src/calibrate.py before participant data collection."
+  "notes": "TEST PROFILE ONLY. Confirmed wheel geometry is 36 spokes, but this profile is still not a physical known-revolution calibration. Geometry may be used for derived diagnostics only; it must not force detections to a multiple of 36. Replace this file with a genuine calibration_profile.json produced by src/calibrate_v2.py before participant data collection."
 }
