@@ -1,0 +1,40 @@
+name: Generate Aligned Review WAVs
+
+on:
+  push:
+    paths:
+      - 'src/write_aligned_review.py'
+      - '.github/workflows/generate-aligned-review-wavs.yml'
+      - 'src/session_analyzer.py'
+      - 'calibration/calibration_profile.json'
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Generate current detections and aligned review WAVs
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from pathlib import Path
+          import session_analyzer as s
+          profile=Path('calibration/calibration_profile.json')
+          for name, wav in [('bike_test_2', Path('audio/Bike test 2.wav')), ('jo_grant', Path('audio/Jo_Grant_Mono.wav'))]:
+              out=Path('aligned_reviews')/name
+              result,csv,review,summary=s.analyse_session(wav,out,profile)
+              print(name, result.detected_hits)
+          PY
+          python src/write_aligned_review.py 'audio/Bike test 2.wav' aligned_reviews/bike_test_2/session_detections.csv aligned_reviews/bike_test_2/aligned_raw_markers.wav
+          python src/write_aligned_review.py 'audio/Jo_Grant_Mono.wav' aligned_reviews/jo_grant/session_detections.csv aligned_reviews/jo_grant/aligned_raw_markers.wav
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aligned-human-review-wavs
+          path: |
+            aligned_reviews/bike_test_2/aligned_raw_markers.wav
+            aligned_reviews/bike_test_2/session_detections.csv
+            aligned_reviews/jo_grant/aligned_raw_markers.wav
+            aligned_reviews/jo_grant/session_detections.csv
