@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-08T11:06:52.560689+00:00",
+  "status": "PASS",
+  "profile_kind": "PROVISIONAL_TEST_ONLY",
+  "source_wav": "audio/Bike test 2.wav",
+  "source_description": "Provisional compatibility profile derived from the Bike Test 2 recording and the manually reviewed v5 detection result. This is NOT a physically ground-truthed wheel-revolution calibration.",
+  "spoke_count": null,
+  "wheel_revolutions": null,
+  "expected_hits": null,
+  "analysis": {
+    "highpass_hz": 250.0,
+    "min_gap_ms": 25.0,
+    "adaptive_prominence_threshold": 19.647,
+    "feature_centroid": [],
+    "feature_scale": []
+  },
+  "acceptance_criteria": {
+    "count_tolerance_pct": null,
+    "min_separation_ratio": null,
+    "max_interval_outlier_pct": null
+  },
+  "metrics": {
+    "detected_hits": 673,
+    "reviewed_by_listening": true,
+    "physical_ground_truth": false,
+    "note": "673 is the v5 adaptive detection count from Bike Test 2. It is not an independently known spoke-strike count."
+  },
+  "notes": "TEST PROFILE ONLY. Created so session_analyzer.py can be exercised before a formal calibration recording exists. Replace this file with a genuine calibration_profile.json produced by src/calibrate.py before participant data collection."
+}
