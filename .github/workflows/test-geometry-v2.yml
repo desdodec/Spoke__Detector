@@ -1,0 +1,43 @@
+name: Test Geometry v2
+
+on:
+  push:
+    paths:
+      - 'src/calibrate_v2.py'
+      - 'src/session_analyzer_v2.py'
+      - 'calibration/calibration_profile.json'
+      - '.github/workflows/test-geometry-v2.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - name: Compile v2 apps
+        run: python -m py_compile src/calibrate_v2.py src/session_analyzer_v2.py
+      - name: Run Jo Grant geometry regression
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          import json
+          from pathlib import Path
+          import session_analyzer_v2 as s
+          out=Path('output_geometry_v2')
+          result,csv,review,summary=s.analyse_session(
+              Path('audio/Jo_Grant_Mono.wav'), out,
+              Path('calibration/calibration_profile.json'))
+          data=json.loads(summary.read_text())
+          print(json.dumps({'hits':result.detected_hits,'quality':result.quality_status,'geometry':data.get('geometry')},indent=2))
+          assert 640 <= result.detected_hits <= 720, result.detected_hits
+          assert data['geometry']['spoke_count'] == 36
+          assert data['geometry']['geometry_available'] is True
+          assert abs(data['geometry']['estimated_revolutions_from_accepted_clicks'] - result.detected_hits/36) < 1e-9
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: geometry-v2-regression
+          path: output_geometry_v2/
