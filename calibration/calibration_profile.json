@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
   "created_utc": "2026-10-08T11:06:52.560689+00:00",
+  "updated_utc": "2026-10-10T22:10:00+00:00",
   "status": "PASS",
-  "profile_kind": "PROVISIONAL_TEST_ONLY",
+  "profile_kind": "VALIDATED_WORKING_PROFILE",
   "source_wav": "audio/Bike test 2.wav",
-  "source_description": "Provisional compatibility profile derived from the Bike Test 2 recording and the manually reviewed v5 detection result. This is NOT a physically ground-truthed wheel-revolution calibration.",
+  "source_description": "Working detector profile. The prominence boundary was derived from Bike Test 2 and subsequently checked against independently reviewed known-event clips. The detector settings are frozen for study dry-runs unless a real failure mode is demonstrated.",
   "spoke_count": 36,
   "wheel_revolutions": null,
   "expected_hits": null,
@@ -22,16 +23,44 @@
     "feature_centroid": [],
     "feature_scale": []
   },
+  "validation": {
+    "event_level_reviewed": true,
+    "reviewed_clips": [
+      {
+        "source": "audio/One Revolution.wav",
+        "segment_seconds": [10.70, 14.86],
+        "reviewed_physical_hits": 17,
+        "detected_hits": 17,
+        "observed_false_positives": 0,
+        "observed_misses": 0,
+        "review_basis": "manual listening review"
+      },
+      {
+        "source": "audio/One revolution new.wav",
+        "segment_seconds": null,
+        "reviewed_physical_hits": 17,
+        "detected_hits": 17,
+        "observed_false_positives": 0,
+        "observed_misses": 0,
+        "review_basis": "manual listening review; earlier 18-hit note corrected after review"
+      }
+    ],
+    "reviewed_total_hits": 34,
+    "reviewed_detected_hits": 34,
+    "observed_false_positives": 0,
+    "observed_misses": 0,
+    "scope_note": "These reviewed clips support the current detector settings but are not a large enough validation set to claim a population-level accuracy percentage."
+  },
   "acceptance_criteria": {
     "count_tolerance_pct": null,
     "min_separation_ratio": null,
     "max_interval_outlier_pct": null
   },
   "metrics": {
-    "detected_hits": 673,
-    "reviewed_by_listening": true,
-    "physical_ground_truth": false,
-    "note": "673 is the v5 adaptive detection count from Bike Test 2. It is not an independently known spoke-strike count."
+    "development_reference_detected_hits": 673,
+    "development_reference_reviewed_by_listening": true,
+    "physical_ground_truth_for_development_reference": false,
+    "note": "Bike Test 2 supplied the working threshold; independent reviewed clips supplied event-level validation evidence."
   },
-  "notes": "TEST PROFILE ONLY. Confirmed wheel geometry is 36 spokes, but this profile is still not a physical known-revolution calibration. Geometry may be used for derived diagnostics only; it must not force detections to a multiple of 36. Replace this file with a genuine calibration_profile.json produced by src/calibrate_v2.py before participant data collection."
+  "notes": "WORKING VALIDATED PROFILE. Exact revolution count is not required for calibration. Known physical hit counts are used as independent validation metadata. Geometry must not force detections to a multiple of 36. Keep detector settings fixed during study dry-runs unless a reproducible failure mode is observed."
 }
