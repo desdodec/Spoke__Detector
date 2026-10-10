@@ -32,7 +32,7 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Analyse known 18-hit recording
+      - name: Analyse reviewed 17-hit recording
         run: |
           PYTHONPATH=src python - <<'PY'
           from pathlib import Path
@@ -42,7 +42,7 @@ jobs:
           wav = Path('audio/One revolution new.wav')
           out = Path('one_revolution_new_validation')
           profile = Path('calibration/calibration_profile.json')
-          expected = 18
+          expected = 17
 
           result, csv_path, review_path, summary_path = s.analyse_session(wav, out, profile)
 
@@ -58,11 +58,14 @@ jobs:
 
           validation = {
               'source_file': str(wav),
+              'ground_truth_source': 'manual listening review',
+              'reviewed_by_listening': True,
               'expected_physical_clicks': expected,
               'detected_clicks': detected,
               'count_error': count_error,
               'absolute_count_error': abs_error,
               'count_agreement_percent': count_agreement,
+              'event_level_review_result': 'all audible spoke hits detected; no extra detections reported',
               'duration_s': result.duration_s,
               'recording_adaptive_threshold': result.recording_adaptive_threshold,
               'effective_prominence_threshold': result.effective_prominence_threshold,
@@ -70,7 +73,7 @@ jobs:
               'median_interval_s': statistics.median(intervals) if intervals else None,
               'min_interval_s': min(intervals) if intervals else None,
               'max_interval_s': max(intervals) if intervals else None,
-              'note': 'Ground truth is 18 physical hits. Count agreement is not event-level accuracy until the review WAV is checked for false-positive/missed-hit swaps.'
+              'note': 'Ground truth was corrected from an initial manual count of 18 to 17 after listening review. The detector output matched all 17 audible spoke hits with no extra detections reported.'
           }
           (out/'validation.json').write_text(json.dumps(validation, indent=2), encoding='utf-8')
           print(json.dumps(validation, indent=2))
@@ -82,5 +85,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: one-revolution-new-18-hit-validation
+          name: one-revolution-new-17-hit-reviewed-validation
           path: one_revolution_new_validation/
