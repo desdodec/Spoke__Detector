@@ -1,0 +1,52 @@
+name: Test Study Session App
+
+on:
+  push:
+    paths:
+      - 'src/study_session_app.py'
+      - 'src/study_session_analysis.py'
+      - 'src/session_analyzer.py'
+      - 'src/session_movement_analysis.py'
+      - 'calibration/calibration_profile.json'
+      - '.github/workflows/test-study-session-app.yml'
+  workflow_dispatch:
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r requirements.txt
+
+      - name: Syntax-check study app
+        run: python -m py_compile src/study_session_app.py src/study_session_analysis.py src/session_movement_analysis.py src/session_analyzer.py
+
+      - name: Analyse Jo Grant end to end
+        run: |
+          PYTHONPATH=src python src/study_session_analysis.py \
+            'audio/Jo_Grant.wav' \
+            'study_test/jo_grant' \
+            --profile calibration/calibration_profile.json \
+            --spokes 36 \
+            --comparison-intervals 180
+
+      - name: Analyse Bike Test 2 end to end
+        run: |
+          PYTHONPATH=src python src/study_session_analysis.py \
+            'audio/Bike test 2.wav' \
+            'study_test/bike_test_2' \
+            --profile calibration/calibration_profile.json \
+            --spokes 36 \
+            --comparison-intervals 180
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: study-session-dry-run
+          path: study_test/
