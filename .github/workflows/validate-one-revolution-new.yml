@@ -1,0 +1,86 @@
+name: Validate One Revolution New
+
+on:
+  push:
+    paths:
+      - 'audio/One revolution new.wav'
+      - '.github/workflows/validate-one-revolution-new.yml'
+      - 'src/session_analyzer.py'
+      - 'src/session_analyzer_v2.py'
+      - 'src/detector_v4.py'
+      - 'src/detector_v5.py'
+      - 'calibration/calibration_profile.json'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Verify LFS source
+        run: |
+          git lfs ls-files
+          file 'audio/One revolution new.wav'
+          ls -lh 'audio/One revolution new.wav'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r requirements.txt
+
+      - name: Analyse known 18-hit recording
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from pathlib import Path
+          import csv, json, statistics
+          import session_analyzer_v2 as s
+
+          wav = Path('audio/One revolution new.wav')
+          out = Path('one_revolution_new_validation')
+          profile = Path('calibration/calibration_profile.json')
+          expected = 18
+
+          result, csv_path, review_path, summary_path = s.analyse_session(wav, out, profile)
+
+          with csv_path.open(newline='', encoding='utf-8') as f:
+              rows = list(csv.DictReader(f))
+          times = [float(r['timestamp_seconds']) for r in rows]
+          intervals = [b-a for a,b in zip(times, times[1:])]
+
+          detected = len(times)
+          count_error = detected - expected
+          abs_error = abs(count_error)
+          count_agreement = max(0.0, 100.0 * (1.0 - abs_error / expected))
+
+          validation = {
+              'source_file': str(wav),
+              'expected_physical_clicks': expected,
+              'detected_clicks': detected,
+              'count_error': count_error,
+              'absolute_count_error': abs_error,
+              'count_agreement_percent': count_agreement,
+              'duration_s': result.duration_s,
+              'recording_adaptive_threshold': result.recording_adaptive_threshold,
+              'effective_prominence_threshold': result.effective_prominence_threshold,
+              'detection_times_s': times,
+              'median_interval_s': statistics.median(intervals) if intervals else None,
+              'min_interval_s': min(intervals) if intervals else None,
+              'max_interval_s': max(intervals) if intervals else None,
+              'note': 'Ground truth is 18 physical hits. Count agreement is not event-level accuracy until the review WAV is checked for false-positive/missed-hit swaps.'
+          }
+          (out/'validation.json').write_text(json.dumps(validation, indent=2), encoding='utf-8')
+          print(json.dumps(validation, indent=2))
+          print('isolated_review=', out/'session_isolated.wav')
+          print('filtered_review=', review_path)
+          print('detections_csv=', csv_path)
+          print('summary=', summary_path)
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: one-revolution-new-18-hit-validation
+          path: one_revolution_new_validation/
