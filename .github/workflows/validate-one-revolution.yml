@@ -1,4 +1,4 @@
-name: Validate One Revolution
+name: Validate One Revolution Segment
 
 on:
   push:
@@ -32,52 +32,81 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Analyse known one-revolution recording
+      - name: Analyse known 17-hit segment
         run: |
           PYTHONPATH=src python - <<'PY'
           from pathlib import Path
           import csv, json, statistics
+          from scipy.io import wavfile
           import session_analyzer_v2 as s
 
-          wav = Path('audio/One Revolution.wav')
+          source = Path('audio/One Revolution.wav')
           out = Path('one_revolution_validation')
+          out.mkdir(parents=True, exist_ok=True)
+          segment = out / 'source_segment_10.70_to_14.86.wav'
           profile = Path('calibration/calibration_profile.json')
-          result, csv_path, review_path, summary_path = s.analyse_session(wav, out, profile)
+
+          start_s = 10.70
+          end_s = 14.86
+          expected = 17
+
+          sr, raw = wavfile.read(source)
+          start = round(start_s * sr)
+          end = round(end_s * sr)
+          cropped = raw[start:end]
+          wavfile.write(segment, sr, cropped)
+          print(f'source_sr={sr} source_shape={raw.shape} dtype={raw.dtype}')
+          print(f'segment={segment} start={start_s:.2f}s end={end_s:.2f}s duration={len(cropped)/sr:.6f}s shape={cropped.shape}')
+
+          result, csv_path, review_path, summary_path = s.analyse_session(segment, out, profile)
 
           with csv_path.open(newline='', encoding='utf-8') as f:
               rows = list(csv.DictReader(f))
-          times = [float(r['timestamp_seconds']) for r in rows]
-          intervals = [b-a for a,b in zip(times, times[1:])]
+          relative_times = [float(r['timestamp_seconds']) for r in rows]
+          absolute_times = [t + start_s for t in relative_times]
+          intervals = [b-a for a,b in zip(relative_times, relative_times[1:])]
 
-          expected = 36
-          detected = len(times)
+          detected = len(relative_times)
           count_error = detected - expected
           abs_error = abs(count_error)
-          accuracy_by_count = max(0.0, 100.0 * (1.0 - abs_error / expected))
+          count_agreement = max(0.0, 100.0 * (1.0 - abs_error / expected))
 
           validation = {
+              'source_file': str(source),
+              'validation_window_source_seconds': [start_s, end_s],
+              'window_duration_s': end_s - start_s,
               'expected_physical_clicks': expected,
               'detected_clicks': detected,
               'count_error': count_error,
               'absolute_count_error': abs_error,
-              'count_accuracy_percent': accuracy_by_count,
-              'duration_s': result.duration_s,
+              'count_agreement_percent': count_agreement,
               'recording_adaptive_threshold': result.recording_adaptive_threshold,
               'effective_prominence_threshold': result.effective_prominence_threshold,
+              'relative_detection_times_s': relative_times,
+              'source_detection_times_s': absolute_times,
               'median_interval_s': statistics.median(intervals) if intervals else None,
               'min_interval_s': min(intervals) if intervals else None,
               'max_interval_s': max(intervals) if intervals else None,
-              'note': 'Count accuracy alone cannot distinguish a matched false-positive/missed-click pair. Review WAV and timestamps are required for event-level validation.'
+              'note': 'Ground truth is 17 physical hits only within 10.70-14.86 s. Count agreement is not event-level accuracy until the review WAV is checked for false-positive/missed-hit swaps.'
           }
           (out/'validation.json').write_text(json.dumps(validation, indent=2), encoding='utf-8')
+
+          # Add source-time columns for direct comparison with the original WAV.
+          with (out/'detections_source_time.csv').open('w', newline='', encoding='utf-8') as f:
+              w = csv.writer(f)
+              w.writerow(['detection_index','segment_time_seconds','source_time_seconds'])
+              for i, (rel, absolute) in enumerate(zip(relative_times, absolute_times), 1):
+                  w.writerow([i, f'{rel:.9f}', f'{absolute:.9f}'])
+
           print(json.dumps(validation, indent=2))
           print('isolated_review=', out/'session_isolated.wav')
           print('filtered_review=', review_path)
           print('detections_csv=', csv_path)
+          print('source_time_csv=', out/'detections_source_time.csv')
           print('summary=', summary_path)
           PY
 
       - uses: actions/upload-artifact@v4
         with:
-          name: one-revolution-validation
+          name: one-revolution-17-hit-validation
           path: one_revolution_validation/
