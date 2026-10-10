@@ -1,0 +1,60 @@
+name: Analyse Movement Session
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/session_movement_analysis.py'
+      - '.github/workflows/analyse-movement-session.yml'
+      - 'src/session_analyzer.py'
+      - 'src/session_analyzer_v2.py'
+      - 'src/detector_v4.py'
+      - 'src/detector_v5.py'
+      - 'calibration/calibration_profile.json'
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r requirements.txt
+
+      - name: Detect clicks in full Jo Grant recording
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from pathlib import Path
+          import json
+          import session_analyzer_v2 as s
+
+          result, csv_path, review_path, summary_path = s.analyse_session(
+              Path('audio/Jo_Grant.wav'),
+              Path('movement_session/jo_grant_detection'),
+              Path('calibration/calibration_profile.json'),
+          )
+          print(json.dumps({
+              'detected_hits': result.detected_hits,
+              'duration_s': result.duration_s,
+              'threshold': result.effective_prominence_threshold,
+              'detections_csv': str(csv_path),
+              'summary': str(summary_path),
+          }, indent=2))
+          PY
+
+      - name: Build movement-rhythm analysis
+        run: |
+          PYTHONPATH=src python src/session_movement_analysis.py \
+            movement_session/jo_grant_detection/session_detections.csv \
+            movement_session/jo_grant_movement \
+            --spokes 36
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jo-grant-movement-analysis
+          path: movement_session/
