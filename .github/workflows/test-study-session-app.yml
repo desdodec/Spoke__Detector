@@ -10,6 +10,7 @@ on:
       - 'src/session_movement_analysis.py'
       - 'calibration/calibration_profile.json'
       - 'study/study_protocol.json'
+      - 'requirements.txt'
       - '.github/workflows/test-study-session-app.yml'
   workflow_dispatch:
 
@@ -69,23 +70,29 @@ jobs:
           print('standard records verified')
           PY
 
-      - name: Export visualisation styles
+      - name: Export nine visualisation styles and PNG
         run: |
           PYTHONPATH=src python - <<'PY'
           from pathlib import Path
           import study_visualizer as v
-          assert len(v.STYLES) == 6
+
+          assert len(v.STYLES) == 9, v.STYLES
+          assert set(v.STYLE_GROUPS) == {'Art','Journey','Analysis'}
+
           for folder in [Path('study_test/jo_grant'), Path('study_test/bike_test_2')]:
               paths = v.export_all_default_styles(folder)
-              assert len(paths) == len(v.STYLES) + 1
+              assert len(paths) == 10, paths
               for p in paths:
                   assert p.exists() and p.stat().st_size > 1000, p
               data = v.load_visual_data(folder)
               assert data.intervals_per_leg == 180
               for style in v.STYLES:
-                  geom = v.build_geometry(data, style, 1400, 1000)
-                  assert geom['lines'], style
-          print('expanded visualisations verified')
+                  geom = v.build_geometry(data, style, 1200, 900, 'Medium', 'Medium', 'Dark garment')
+                  assert geom.get('lines') or geom.get('rects') or geom.get('polygons'), style
+              png = folder / 'artwork' / 'radial_test.png'
+              v.export_png(png, data, 'Radial fingerprint', transparent=True)
+              assert png.exists() and png.stat().st_size > 5000
+          print('nine-style visualiser verified')
           PY
 
       - uses: actions/upload-artifact@v4
