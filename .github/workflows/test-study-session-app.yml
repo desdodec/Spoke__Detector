@@ -70,29 +70,49 @@ jobs:
           print('standard records verified')
           PY
 
-      - name: Export nine visualisation styles and PNG
+      - name: Verify curated baseline visualiser
         run: |
           PYTHONPATH=src python - <<'PY'
           from pathlib import Path
           import study_visualizer as v
 
-          assert len(v.STYLES) == 9, v.STYLES
-          assert set(v.STYLE_GROUPS) == {'Art','Journey','Analysis'}
+          expected = {
+              'Radial fingerprint',
+              'Spoke-wheel barcode',
+              'Concentric rhythm rings',
+              '36-spoke aggregate glyph',
+              'Woven stripes',
+              'Poincare map',
+              'Recurrence matrix',
+              'Lag similarity map',
+              'Grid weave',
+          }
+          assert set(v.STYLES) == expected, v.STYLES
+          assert set(v.STYLE_GROUPS) == {'Signature', 'Pattern'}
+          assert v.SOURCE_OPTIONS[0] == 'Baseline / first leg'
+          assert {'Mono','Earth','Electric','Heatmap','Luxury'} == set(v.PALETTE_FAMILIES)
 
           for folder in [Path('study_test/jo_grant'), Path('study_test/bike_test_2')]:
-              paths = v.export_all_default_styles(folder)
-              assert len(paths) == 10, paths
-              for p in paths:
-                  assert p.exists() and p.stat().st_size > 1000, p
               data = v.load_visual_data(folder)
               assert data.intervals_per_leg == 180
               for style in v.STYLES:
-                  geom = v.build_geometry(data, style, 1200, 900, 'Medium', 'Medium', 'Dark garment')
-                  assert geom.get('lines') or geom.get('rects') or geom.get('polygons'), style
-              png = folder / 'artwork' / 'radial_test.png'
-              v.export_png(png, data, 'Radial fingerprint', transparent=True)
+                  geom = v.build_geometry(
+                      data, style, 1200, 900, 'Medium', 'Medium',
+                      'Dark garment', 'Baseline / first leg', 'Neon Pulse'
+                  )
+                  assert geom.get('lines') or geom.get('rects') or geom.get('points') or geom.get('polygons'), style
+                  assert v.STYLE_HELP[style]
+              paths = v.export_all_default_styles(folder, source='Baseline / first leg', palette_name='Gold on Black')
+              assert len(paths) == 10, paths
+              for p in paths:
+                  assert p.exists() and p.stat().st_size > 1000, p
+              png = folder / 'artwork' / 'recurrence_colour_test.png'
+              v.export_png(
+                  png, data, 'Recurrence matrix',
+                  source='Baseline / first leg', palette_name='Plasma', transparent=True
+              )
               assert png.exists() and png.stat().st_size > 5000
-          print('nine-style visualiser verified')
+          print('curated baseline visualiser verified')
           PY
 
       - uses: actions/upload-artifact@v4
