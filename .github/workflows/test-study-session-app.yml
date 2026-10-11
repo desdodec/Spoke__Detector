@@ -74,14 +74,18 @@ jobs:
           PYTHONPATH=src python - <<'PY'
           from pathlib import Path
           import study_visualizer as v
+          assert len(v.STYLES) == 6
           for folder in [Path('study_test/jo_grant'), Path('study_test/bike_test_2')]:
               paths = v.export_all_default_styles(folder)
-              assert len(paths) == 4
+              assert len(paths) == len(v.STYLES) + 1
               for p in paths:
                   assert p.exists() and p.stat().st_size > 1000, p
               data = v.load_visual_data(folder)
               assert data.intervals_per_leg == 180
-          print('visualisations verified')
+              for style in v.STYLES:
+                  geom = v.build_geometry(data, style, 1400, 1000)
+                  assert geom['lines'], style
+          print('expanded visualisations verified')
           PY
 
       - uses: actions/upload-artifact@v4
