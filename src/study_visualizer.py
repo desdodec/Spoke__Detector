@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Standardised study-data visualisation and print-ready SVG export.
 
-The visualiser never changes the scientific comparison window.  Every style is
+The visualiser never changes the scientific comparison window. Every style is
 built from the same locked central interval block written by the study workflow.
 Visual choices alter presentation only; they do not alter subject metrics.
 """
@@ -18,7 +18,14 @@ from typing import Any
 import numpy as np
 
 
-STYLES = ("Radial fingerprint", "Spiral journey", "Mirrored signature")
+STYLES = (
+    "Radial fingerprint",
+    "Spiral journey",
+    "Mirrored signature",
+    "Twin orbit",
+    "Topographic bands",
+    "Difference halo",
+)
 DENSITIES = ("Low", "Medium", "High")
 SMOOTHING = ("Low", "Medium", "High")
 THEMES = ("Light garment", "Dark garment")
@@ -171,22 +178,17 @@ def _radial_geometry(data: VisualData, width: int, height: int, density: str, sm
     base = min(width, height) * 0.31
     amp = min(width, height) * 0.27
     gap = math.radians(18.0)
-
-    # Start at top. Outward moves down the left side to TURN at bottom.
-    # Return moves up the right side to END at top.
     t_out = np.linspace(-math.pi / 2.0 - gap, -3.0 * math.pi / 2.0 + gap, len(out))
     t_ret = np.linspace(math.pi / 2.0 + gap, -math.pi / 2.0 - gap, len(ret))
 
     lines = []
-    offsets = _density_offsets(density)
-    for i, off in enumerate(offsets):
+    for i, off in enumerate(_density_offsets(density)):
         ro = base * (1.0 + off) + amp * out
         rr = base * (1.0 + off) + amp * ret
         po = [(cx + float(r) * math.cos(float(t)), cy + float(r) * math.sin(float(t))) for r, t in zip(ro, t_out)]
         pr = [(cx + float(r) * math.cos(float(t)), cy + float(r) * math.sin(float(t))) for r, t in zip(rr, t_ret)]
         lines.append(("outward" if i == 0 else "echo_out", po, 3.0 if i == 0 else 1.1))
         lines.append(("return" if i == 0 else "echo_ret", pr, 3.0 if i == 0 else 1.1))
-
     labels = [
         ("START", cx - 68, cy - base - 55, "muted", 12),
         ("END", cx + 68, cy - base - 55, "muted", 12),
@@ -202,24 +204,20 @@ def _spiral_geometry(data: VisualData, width: int, height: int, density: str, sm
     ret = _normalised_deviation(data.return_intervals, smoothing)
     cx, cy = width / 2.0, height / 2.0
     size = min(width, height)
-    offsets = _density_offsets(density)
     lines = []
-
-    # Outward expands; return contracts. A deliberate gap marks the turnaround.
     t_out = np.linspace(-math.pi / 2, 2.5 * math.pi, len(out))
     t_ret = np.linspace(2.72 * math.pi, 5.72 * math.pi, len(ret))
     base_out = np.linspace(size * 0.10, size * 0.35, len(out))
     base_ret = np.linspace(size * 0.35, size * 0.12, len(ret))
     amp = size * 0.16
 
-    for i, off in enumerate(offsets):
+    for i, off in enumerate(_density_offsets(density)):
         ro = base_out + size * off * 0.10 + amp * out
         rr = base_ret + size * off * 0.10 + amp * ret
         po = [(cx + float(r) * math.cos(float(t)), cy + float(r) * math.sin(float(t))) for r, t in zip(ro, t_out)]
         pr = [(cx + float(r) * math.cos(float(t)), cy + float(r) * math.sin(float(t))) for r, t in zip(rr, t_ret)]
         lines.append(("outward" if i == 0 else "echo_out", po, 3.0 if i == 0 else 1.0))
         lines.append(("return" if i == 0 else "echo_ret", pr, 3.0 if i == 0 else 1.0))
-
     labels = [
         ("START", cx, cy - size * 0.08, "muted", 12),
         ("TURN", cx + size * 0.36, cy, "marker", 12),
@@ -240,9 +238,8 @@ def _mirrored_geometry(data: VisualData, width: int, height: int, density: str, 
     x = np.linspace(left, right, len(out))
     upper, lower = height * 0.34, height * 0.66
     amp = height * 0.32
-    offsets = _density_offsets(density)
     lines = []
-    for i, off in enumerate(offsets):
+    for i, off in enumerate(_density_offsets(density)):
         po = [(float(xx), upper - amp * float(v) - off * height * 0.16) for xx, v in zip(x, out)]
         pr = [(float(xx), lower + amp * float(v) + off * height * 0.16) for xx, v in zip(x, ret)]
         lines.append(("outward" if i == 0 else "echo_out", po, 3.0 if i == 0 else 1.0))
@@ -257,18 +254,91 @@ def _mirrored_geometry(data: VisualData, width: int, height: int, density: str, 
     return {"lines": lines, "labels": labels}
 
 
-def build_geometry(
-    data: VisualData,
-    style: str,
-    width: int,
-    height: int,
-    density: str = "Medium",
-    smoothing: str = "Medium",
-) -> dict[str, Any]:
+def _twin_orbit_geometry(data: VisualData, width: int, height: int, density: str, smoothing: str) -> dict[str, Any]:
+    out = _normalised_deviation(data.outward_intervals, smoothing)
+    ret = _normalised_deviation(data.return_intervals, smoothing)
+    size = min(width, height)
+    cy = height * 0.50
+    cx_out, cx_ret = width * 0.31, width * 0.69
+    base = size * 0.20
+    amp = size * 0.18
+    theta = np.linspace(-math.pi / 2, 3 * math.pi / 2, len(out))
+    lines = []
+    for i, off in enumerate(_density_offsets(density)):
+        ro = base * (1.0 + off) + amp * out
+        rr = base * (1.0 + off) + amp * ret
+        po = [(cx_out + float(r) * math.cos(float(t)), cy + float(r) * math.sin(float(t))) for r, t in zip(ro, theta)]
+        pr = [(cx_ret + float(r) * math.cos(float(t)), cy + float(r) * math.sin(float(t))) for r, t in zip(rr, theta)]
+        lines.append(("outward" if i == 0 else "echo_out", po, 3.0 if i == 0 else 1.0))
+        lines.append(("return" if i == 0 else "echo_ret", pr, 3.0 if i == 0 else 1.0))
+    labels = [
+        (f"OUTWARD  {data.outward_position}", cx_out, cy + base + 70, "outward", 13),
+        (f"RETURN  {data.return_position}", cx_ret, cy + base + 70, "return", 13),
+        ("same 180-interval window", width / 2, height * 0.12, "muted", 11),
+    ]
+    return {"lines": lines, "labels": labels}
+
+
+def _topographic_geometry(data: VisualData, width: int, height: int, density: str, smoothing: str) -> dict[str, Any]:
+    out = _normalised_deviation(data.outward_intervals, smoothing)
+    ret = _normalised_deviation(data.return_intervals, smoothing)
+    x = np.linspace(width * 0.08, width * 0.92, len(out))
+    bands = {"Low": 4, "Medium": 7, "High": 11}.get(density, 7)
+    amp = height * 0.10
+    lines = []
+    for i in range(bands):
+        frac = i / max(1, bands - 1)
+        y_out = height * (0.18 + 0.24 * frac)
+        y_ret = height * (0.58 + 0.24 * frac)
+        po = [(float(xx), y_out - amp * float(v)) for xx, v in zip(x, out)]
+        pr = [(float(xx), y_ret + amp * float(v)) for xx, v in zip(x, ret)]
+        lines.append(("outward" if i == bands // 2 else "echo_out", po, 2.5 if i == bands // 2 else 1.0))
+        lines.append(("return" if i == bands // 2 else "echo_ret", pr, 2.5 if i == bands // 2 else 1.0))
+    labels = [
+        (f"OUTWARD  {data.outward_position}", width * 0.12, height * 0.10, "outward", 13),
+        (f"RETURN  {data.return_position}", width * 0.12, height * 0.90, "return", 13),
+        ("movement contours", width * 0.82, height * 0.50, "muted", 11),
+    ]
+    return {"lines": lines, "labels": labels}
+
+
+def _difference_halo_geometry(data: VisualData, width: int, height: int, density: str, smoothing: str) -> dict[str, Any]:
+    out = _normalised_deviation(data.outward_intervals, smoothing)
+    ret = _normalised_deviation(data.return_intervals, smoothing)
+    n = min(len(out), len(ret))
+    out, ret = out[:n], ret[:n]
+    theta = np.linspace(-math.pi / 2, 3 * math.pi / 2, n)
+    cx, cy = width / 2.0, height / 2.0
+    size = min(width, height)
+    base = size * 0.30
+    amp = size * 0.22
+    lines = []
+    for i, off in enumerate(_density_offsets(density)):
+        ro = base * (1.0 + off * 0.6) + amp * out
+        rr = base * (1.0 - off * 0.4) + amp * ret
+        po = [(cx + float(r) * math.cos(float(t)), cy + float(r) * math.sin(float(t))) for r, t in zip(ro, theta)]
+        pr = [(cx + float(r) * math.cos(float(t)), cy + float(r) * math.sin(float(t))) for r, t in zip(rr, theta)]
+        lines.append(("outward" if i == 0 else "echo_out", po, 3.0 if i == 0 else 0.9))
+        lines.append(("return" if i == 0 else "echo_ret", pr, 3.0 if i == 0 else 0.9))
+    labels = [
+        ("OUTWARD + RETURN OVERLAY", cx, height * 0.12, "muted", 11),
+        (f"OUT {data.outward_position}", cx - base * 0.55, cy, "outward", 12),
+        (f"RETURN {data.return_position}", cx + base * 0.55, cy, "return", 12),
+    ]
+    return {"lines": lines, "labels": labels}
+
+
+def build_geometry(data: VisualData, style: str, width: int, height: int, density: str = "Medium", smoothing: str = "Medium") -> dict[str, Any]:
     if style == "Spiral journey":
         return _spiral_geometry(data, width, height, density, smoothing)
     if style == "Mirrored signature":
         return _mirrored_geometry(data, width, height, density, smoothing)
+    if style == "Twin orbit":
+        return _twin_orbit_geometry(data, width, height, density, smoothing)
+    if style == "Topographic bands":
+        return _topographic_geometry(data, width, height, density, smoothing)
+    if style == "Difference halo":
+        return _difference_halo_geometry(data, width, height, density, smoothing)
     return _radial_geometry(data, width, height, density, smoothing)
 
 
@@ -286,18 +356,10 @@ def brief_analysis_lines(data: VisualData) -> list[str]:
     ]
 
 
-def draw_on_canvas(
-    canvas: Any,
-    data: VisualData,
-    style: str,
-    theme: str,
-    density: str,
-    smoothing: str,
-    annotated: bool,
-) -> None:
+def draw_on_canvas(canvas: Any, data: VisualData, style: str, theme: str, density: str, smoothing: str, annotated: bool) -> None:
     canvas.update_idletasks()
-    width = max(640, int(canvas.winfo_width()))
-    height = max(520, int(canvas.winfo_height()))
+    width = max(760, int(canvas.winfo_width()))
+    height = max(620, int(canvas.winfo_height()))
     palette = _palette(theme)
     canvas.configure(background=palette["background"])
     canvas.delete("all")
@@ -313,7 +375,7 @@ def draw_on_canvas(
             canvas.create_text(x, y, text=text, fill=palette[role], font=("TkDefaultFont", size, "bold"))
         canvas.create_text(
             width / 2,
-            height * 0.08,
+            height * 0.06,
             text=f"{data.participant_id}  /  TRIAL {data.trial_id}",
             fill=palette["text"],
             font=("TkDefaultFont", 15, "bold"),
@@ -321,30 +383,17 @@ def draw_on_canvas(
         for i, line in enumerate(brief_analysis_lines(data)):
             canvas.create_text(
                 width / 2,
-                height * (0.82 + 0.035 * i),
+                height * (0.84 + 0.032 * i),
                 text=line,
                 fill=palette["text"] if i == 0 else palette["muted"],
                 font=("TkDefaultFont", 10),
             )
 
 
-def export_svg(
-    path: Path,
-    data: VisualData,
-    style: str,
-    theme: str = "Light garment",
-    density: str = "Medium",
-    smoothing: str = "Medium",
-    annotated: bool = False,
-    width: int = 1200,
-    height: int = 1200,
-    transparent: bool = True,
-) -> None:
+def export_svg(path: Path, data: VisualData, style: str, theme: str = "Light garment", density: str = "Medium", smoothing: str = "Medium", annotated: bool = False, width: int = 1400, height: int = 1400, transparent: bool = True) -> None:
     palette = _palette(theme)
     geom = build_geometry(data, style, width, height, density, smoothing)
-    parts = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
-    ]
+    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">']
     if not transparent:
         parts.append(f'<rect width="100%" height="100%" fill="{palette["background"]}"/>')
 
@@ -362,11 +411,11 @@ def export_svg(
                 f'font-family="sans-serif" font-size="{size * 1.35:.1f}" font-weight="700">{escape(text)}</text>'
             )
         parts.append(
-            f'<text x="{width/2:.2f}" y="{height*0.08:.2f}" text-anchor="middle" fill="{palette["text"]}" '
+            f'<text x="{width/2:.2f}" y="{height*0.06:.2f}" text-anchor="middle" fill="{palette["text"]}" '
             f'font-family="sans-serif" font-size="24" font-weight="700">{escape(data.participant_id)} / TRIAL {escape(data.trial_id)}</text>'
         )
         for i, line in enumerate(brief_analysis_lines(data)):
-            y = height * (0.82 + 0.035 * i)
+            y = height * (0.84 + 0.032 * i)
             parts.append(
                 f'<text x="{width/2:.2f}" y="{y:.2f}" text-anchor="middle" fill="{palette["text"] if i == 0 else palette["muted"]}" '
                 f'font-family="sans-serif" font-size="16">{escape(line)}</text>'
