@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "protocol_id": "SPOKE_GAIT_V1",
+  "status": "LOCKED_FOR_COMPARABLE_CAPTURE",
+  "purpose": "Standardise capture and analysis so between-subject movement-rhythm comparisons are made using the same physical and analytical rules.",
+  "capture": {
+    "route": "same marked pavement route and same start/turnaround/end points for every subject",
+    "instruction": "walk at a comfortable natural pace while pushing the bicycle",
+    "bike": "same bicycle and wheel setup",
+    "wheel_spokes": 36,
+    "cable_tie": "same mounting position and equivalent contact geometry; record replacement if changed",
+    "recorder": "same recorder/microphone mounting position and recording settings",
+    "turnaround": "turn at the marked endpoint and swap handlebar position before the return leg",
+    "handlebar_order": "record outward and return positions explicitly; study design should counterbalance order across subjects where possible"
+  },
+  "analysis": {
+    "spoke_count": 36,
+    "primary_comparison_intervals_per_leg": 180,
+    "primary_window_method": "fixed central spoke-click interval count",
+    "equivalent_wheel_revolutions_per_leg": 5.0,
+    "exclude_turnaround_from_primary_comparison": true,
+    "detector_profile": "calibration/calibration_profile.json",
+    "detector_settings_locked": true,
+    "manual_turnaround_allowed": true,
+    "movement_proxy_note": "Spoke timing reflects wheel motion / forward movement rhythm and is used as a gait-related movement proxy; it is not direct heel-strike or toe-off timing."
+  },
+  "required_subject_metadata": [
+    "participant_id",
+    "trial_id",
+    "outward_handlebar_position",
+    "return_handlebar_position"
+  ],
+  "change_control": "Once participant data collection starts, do not alter detector settings, spoke count, primary comparison window, or extraction rules for only some participants. If a method changes, reprocess all participants with the same version."
+}
