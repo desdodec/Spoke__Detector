@@ -8,6 +8,7 @@ on:
       - 'src/session_analyzer.py'
       - 'src/session_movement_analysis.py'
       - 'calibration/calibration_profile.json'
+      - 'study/study_protocol.json'
       - '.github/workflows/test-study-session-app.yml'
   workflow_dispatch:
 
@@ -34,8 +35,11 @@ jobs:
             'audio/Jo_Grant.wav' \
             'study_test/jo_grant' \
             --profile calibration/calibration_profile.json \
-            --spokes 36 \
-            --comparison-intervals 180
+            --protocol study/study_protocol.json \
+            --participant-id TEST_JO \
+            --trial-id 1 \
+            --outward-position A \
+            --return-position B
 
       - name: Analyse Bike Test 2 end to end
         run: |
@@ -43,8 +47,26 @@ jobs:
             'audio/Bike test 2.wav' \
             'study_test/bike_test_2' \
             --profile calibration/calibration_profile.json \
-            --spokes 36 \
-            --comparison-intervals 180
+            --protocol study/study_protocol.json \
+            --participant-id TEST_BIKE2 \
+            --trial-id 1 \
+            --outward-position B \
+            --return-position A
+
+      - name: Verify standard subject records
+        run: |
+          test -f study_test/jo_grant/subject_record.csv
+          test -f study_test/bike_test_2/subject_record.csv
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          for path in [Path('study_test/jo_grant/subject_record.csv'), Path('study_test/bike_test_2/subject_record.csv')]:
+              rows=list(csv.DictReader(path.open()))
+              assert len(rows)==1, path
+              assert rows[0]['protocol_id']=='SPOKE_GAIT_V1', rows[0]
+              assert rows[0]['comparison_intervals_per_leg']=='180', rows[0]
+          print('standard records verified')
+          PY
 
       - uses: actions/upload-artifact@v4
         with:
