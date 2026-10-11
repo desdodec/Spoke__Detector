@@ -16,13 +16,22 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROFILE = REPO_ROOT / "calibration" / "calibration_profile.json"
 DEFAULT_PROTOCOL = REPO_ROOT / "study" / "study_protocol.json"
 
+STYLE_HELP = {
+    "Radial fingerprint": "Outward and return form two halves of one movement fingerprint.",
+    "Spiral journey": "The standardised outward and return windows become a continuous journey form.",
+    "Mirrored signature": "Outward and return are mirrored for the clearest rhythm comparison.",
+    "Twin orbit": "Two equal-scale circular signatures make outward/return differences easy to compare.",
+    "Topographic bands": "Repeated rhythm traces become a contour-map style print.",
+    "Difference halo": "Outward and return are overlaid on the same circular scale so divergence becomes the artwork.",
+}
+
 
 class StudySessionApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Spoke Detector - Study Analysis + Visualiser")
-        self.geometry("1180x820")
-        self.minsize(980, 700)
+        self.geometry("1500x930")
+        self.minsize(1180, 760)
 
         self.protocol = study.load_protocol(DEFAULT_PROTOCOL)
         rules = self.protocol["analysis"]
@@ -45,6 +54,7 @@ class StudySessionApp(tk.Tk):
         self.smoothing_var = tk.StringVar(value="Medium")
         self.annotated_var = tk.BooleanVar(value=False)
         self.visual_status_var = tk.StringVar(value="Run an analysis or load an existing study output.")
+        self.style_help_var = tk.StringVar(value=STYLE_HELP[visual.STYLES[0]])
 
         self.protocol_text = (
             f"{self.protocol['protocol_id']}  |  {rules['spoke_count']} spokes  |  "
@@ -79,7 +89,7 @@ class StudySessionApp(tk.Tk):
                 "Capture and analysis rules are locked so every subject is processed with the same spoke geometry "
                 "and physical-equivalent comparison window. Visualisation choices never alter those scientific rules."
             ),
-            wraplength=1080,
+            wraplength=1320,
         ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(0, 12))
 
         protocol_box = ttk.LabelFrame(root, text="Locked study protocol", padding=10)
@@ -88,7 +98,7 @@ class StudySessionApp(tk.Tk):
         ttk.Label(
             protocol_box,
             text="Primary comparison excludes the turnaround and uses the same central wheel-travel window for every participant.",
-            wraplength=1040,
+            wraplength=1260,
         ).grid(row=1, column=0, sticky="w", pady=(5, 0))
 
         meta = ttk.LabelFrame(root, text="Required participant metadata", padding=10)
@@ -132,17 +142,19 @@ class StudySessionApp(tk.Tk):
         self.results.grid(row=10, column=0, columnspan=3, sticky="nsew", pady=(5, 0))
 
     def _build_visual_tab(self, root: ttk.Frame) -> None:
-        root.columnconfigure(1, weight=1)
-        root.rowconfigure(1, weight=1)
+        # Make the artwork preview the dominant area of the visualiser.
+        root.columnconfigure(0, weight=6, minsize=820)
+        root.columnconfigure(1, weight=1, minsize=270)
+        root.rowconfigure(2, weight=1)
 
         controls = ttk.LabelFrame(root, text="Visualisation controls", padding=10)
-        controls.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        controls.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
 
         ttk.Label(controls, text="Style").grid(row=0, column=0, sticky="w")
         style_box = ttk.Combobox(controls, textvariable=self.style_var, values=visual.STYLES, state="readonly", width=24)
         style_box.grid(row=0, column=1, padx=(6, 18), sticky="w")
 
-        ttk.Label(controls, text="Preview").grid(row=0, column=2, sticky="w")
+        ttk.Label(controls, text="Garment preview").grid(row=0, column=2, sticky="w")
         theme_box = ttk.Combobox(controls, textvariable=self.theme_var, values=visual.THEMES, state="readonly", width=16)
         theme_box.grid(row=0, column=3, padx=(6, 18), sticky="w")
 
@@ -158,42 +170,57 @@ class StudySessionApp(tk.Tk):
             row=0, column=8, sticky="w"
         )
 
-        for box in (style_box, theme_box, density_box, smoothing_box):
+        style_box.bind("<<ComboboxSelected>>", self._style_changed)
+        for box in (theme_box, density_box, smoothing_box):
             box.bind("<<ComboboxSelected>>", lambda _event: self._refresh_preview())
 
-        preview_frame = ttk.LabelFrame(root, text="Live preview", padding=6)
-        preview_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 8))
+        ttk.Label(root, textvariable=self.style_help_var, wraplength=1120).grid(
+            row=1, column=0, columnspan=2, sticky="w", pady=(0, 6)
+        )
+
+        preview_frame = ttk.LabelFrame(root, text="Large live preview", padding=6)
+        preview_frame.grid(row=2, column=0, sticky="nsew", padx=(0, 8))
         preview_frame.rowconfigure(0, weight=1)
         preview_frame.columnconfigure(0, weight=1)
-        self.preview_canvas = tk.Canvas(preview_frame, highlightthickness=0, background="#111111")
+        self.preview_canvas = tk.Canvas(
+            preview_frame,
+            width=980,
+            height=720,
+            highlightthickness=0,
+            background="#111111",
+        )
         self.preview_canvas.grid(row=0, column=0, sticky="nsew")
         self.preview_canvas.bind("<Configure>", lambda _event: self._refresh_preview())
 
         side = ttk.Frame(root)
-        side.grid(row=1, column=1, sticky="nsew")
+        side.grid(row=2, column=1, sticky="nsew")
         side.columnconfigure(0, weight=1)
+        side.rowconfigure(0, weight=1)
 
-        brief = ttk.LabelFrame(side, text="Brief gait analysis", padding=10)
-        brief.grid(row=0, column=0, sticky="ew")
-        self.brief_text = tk.Text(brief, width=37, height=12, wrap="word")
+        brief = ttk.LabelFrame(side, text="Brief gait analysis", padding=8)
+        brief.grid(row=0, column=0, sticky="nsew")
+        self.brief_text = tk.Text(brief, width=31, height=16, wrap="word")
         self.brief_text.pack(fill="both", expand=True)
         self.brief_text.insert("1.0", "No analysed session loaded.")
         self.brief_text.configure(state="disabled")
 
-        exports = ttk.LabelFrame(side, text="Artwork export", padding=10)
-        exports.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        exports = ttk.LabelFrame(side, text="Artwork export", padding=8)
+        exports.grid(row=1, column=0, sticky="ew", pady=(8, 0))
         ttk.Button(exports, text="Export Current SVG...", command=self._export_current_svg).pack(fill="x")
-        ttk.Button(exports, text="Export All 3 Default Styles", command=self._export_all_styles).pack(fill="x", pady=(6, 0))
+        ttk.Button(exports, text=f"Export All {len(visual.STYLES)} Styles", command=self._export_all_styles).pack(fill="x", pady=(6, 0))
         ttk.Label(
             exports,
             text=(
-                "SVG export uses the same locked central data window as the study analysis. "
-                "Style, density and smoothing affect presentation only."
+                "Every style uses the identical locked subject window. Style, density and smoothing change presentation only."
             ),
-            wraplength=300,
+            wraplength=250,
         ).pack(fill="x", pady=(8, 0))
 
-        ttk.Label(side, textvariable=self.visual_status_var, wraplength=320).grid(row=2, column=0, sticky="ew", pady=(10, 0))
+        ttk.Label(side, textvariable=self.visual_status_var, wraplength=250).grid(row=2, column=0, sticky="ew", pady=(8, 0))
+
+    def _style_changed(self, _event=None) -> None:
+        self.style_help_var.set(STYLE_HELP.get(self.style_var.get(), ""))
+        self._refresh_preview()
 
     def _path_row(self, parent, row: int, label: str, var: tk.StringVar, command) -> None:
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=4)
@@ -386,8 +413,8 @@ class StudySessionApp(tk.Tk):
         if self.visual_data is None:
             self.preview_canvas.delete("all")
             self.preview_canvas.create_text(
-                max(320, self.preview_canvas.winfo_width() / 2),
-                max(240, self.preview_canvas.winfo_height() / 2),
+                max(380, self.preview_canvas.winfo_width() / 2),
+                max(300, self.preview_canvas.winfo_height() / 2),
                 text="Analyse a session or load an existing output to preview artwork.",
                 fill="#aaaaaa",
                 font=("TkDefaultFont", 13),
