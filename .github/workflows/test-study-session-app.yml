@@ -5,6 +5,7 @@ on:
     paths:
       - 'src/study_session_app.py'
       - 'src/study_session_analysis.py'
+      - 'src/study_visualizer.py'
       - 'src/session_analyzer.py'
       - 'src/session_movement_analysis.py'
       - 'calibration/calibration_profile.json'
@@ -27,7 +28,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Syntax-check study app
-        run: python -m py_compile src/study_session_app.py src/study_session_analysis.py src/session_movement_analysis.py src/session_analyzer.py
+        run: python -m py_compile src/study_session_app.py src/study_session_analysis.py src/study_visualizer.py src/session_movement_analysis.py src/session_analyzer.py
 
       - name: Analyse Jo Grant end to end
         run: |
@@ -66,6 +67,21 @@ jobs:
               assert rows[0]['protocol_id']=='SPOKE_GAIT_V1', rows[0]
               assert rows[0]['comparison_intervals_per_leg']=='180', rows[0]
           print('standard records verified')
+          PY
+
+      - name: Export visualisation styles
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from pathlib import Path
+          import study_visualizer as v
+          for folder in [Path('study_test/jo_grant'), Path('study_test/bike_test_2')]:
+              paths = v.export_all_default_styles(folder)
+              assert len(paths) == 4
+              for p in paths:
+                  assert p.exists() and p.stat().st_size > 1000, p
+              data = v.load_visual_data(folder)
+              assert data.intervals_per_leg == 180
+          print('visualisations verified')
           PY
 
       - uses: actions/upload-artifact@v4
