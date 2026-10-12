@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'src/study_session_app.py'
+      - 'src/design_laboratory.py'
+      - 'src/design_laboratory_app.py'
       - 'src/study_session_analysis.py'
       - 'src/study_visualizer.py'
       - 'src/session_analyzer.py'
@@ -28,8 +30,8 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Syntax-check study app
-        run: python -m py_compile src/study_session_app.py src/study_session_analysis.py src/study_visualizer.py src/session_movement_analysis.py src/session_analyzer.py
+      - name: Syntax-check study and laboratory apps
+        run: python -m py_compile src/study_session_app.py src/design_laboratory.py src/design_laboratory_app.py src/study_session_analysis.py src/study_visualizer.py src/session_movement_analysis.py src/session_analyzer.py
 
       - name: Analyse Jo Grant end to end
         run: |
@@ -113,6 +115,39 @@ jobs:
               )
               assert png.exists() and png.stat().st_size > 5000
           print('curated baseline visualiser verified')
+          PY
+
+      - name: Verify design laboratory and paired central slices
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from pathlib import Path
+          import json
+          import design_laboratory as lab
+          import study_visualizer as v
+
+          assert len(lab.ART_DIRECTIONS) == 6
+          assert len(lab.RUBRIC) == 12
+          assert len(lab.build_candidates(24)) == 24
+
+          for folder in [Path('study_test/jo_grant'), Path('study_test/bike_test_2')]:
+              data = v.load_visual_data(folder)
+              paired = lab.paired_leg_analysis(data)
+              assert paired['intervals_per_leg'] == 180
+              assert abs(paired['equivalent_revolutions_per_leg'] - 5.0) < 1e-9
+              result = lab.generate_laboratory(folder, candidate_limit=12)
+              assert result['candidate_count'] == 12
+              assert result['contact_sheet'].exists() and result['contact_sheet'].stat().st_size > 10000
+              assert result['manifest'].exists()
+              manifest = json.loads(result['manifest'].read_text())
+              assert manifest['locked_intervals_per_leg'] == 180
+              assert manifest['equivalent_revolutions_per_leg'] == 5.0
+              assert len(manifest['candidates']) == 12
+              assert result['paired_analysis'].exists()
+              pngs = list((folder / 'design_lab').glob('*.png'))
+              svgs = list((folder / 'design_lab').glob('*.svg'))
+              assert len(pngs) >= 13, pngs
+              assert len(svgs) == 12, svgs
+          print('design laboratory verified')
           PY
 
       - uses: actions/upload-artifact@v4
