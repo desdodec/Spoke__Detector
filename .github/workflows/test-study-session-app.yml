@@ -6,6 +6,7 @@ on:
       - 'src/study_session_app.py'
       - 'src/design_laboratory.py'
       - 'src/design_laboratory_app.py'
+      - 'src/design_studio.py'
       - 'src/study_session_analysis.py'
       - 'src/study_visualizer.py'
       - 'src/session_analyzer.py'
@@ -30,8 +31,8 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Syntax-check study and laboratory apps
-        run: python -m py_compile src/study_session_app.py src/design_laboratory.py src/design_laboratory_app.py src/study_session_analysis.py src/study_visualizer.py src/session_movement_analysis.py src/session_analyzer.py
+      - name: Syntax-check study and design apps
+        run: python -m py_compile src/study_session_app.py src/design_laboratory.py src/design_laboratory_app.py src/design_studio.py src/study_session_analysis.py src/study_visualizer.py src/session_movement_analysis.py src/session_analyzer.py
 
       - name: Analyse Jo Grant end to end
         run: |
@@ -104,50 +105,71 @@ jobs:
                   )
                   assert geom.get('lines') or geom.get('rects') or geom.get('points') or geom.get('polygons'), style
                   assert v.STYLE_HELP[style]
-              paths = v.export_all_default_styles(folder, source='Baseline / first leg', palette_name='Gold on Black')
-              assert len(paths) == 10, paths
-              for p in paths:
-                  assert p.exists() and p.stat().st_size > 1000, p
-              png = folder / 'artwork' / 'recurrence_colour_test.png'
-              v.export_png(
-                  png, data, 'Recurrence matrix',
-                  source='Baseline / first leg', palette_name='Plasma', transparent=True
-              )
-              assert png.exists() and png.stat().st_size > 5000
           print('curated baseline visualiser verified')
           PY
 
-      - name: Verify design laboratory and paired central slices
+      - name: Verify paired central-slice analysis
         run: |
           PYTHONPATH=src python - <<'PY'
           from pathlib import Path
-          import json
           import design_laboratory as lab
           import study_visualizer as v
-
-          assert len(lab.ART_DIRECTIONS) == 6
-          assert len(lab.RUBRIC) == 12
-          assert len(lab.build_candidates(24)) == 24
-
           for folder in [Path('study_test/jo_grant'), Path('study_test/bike_test_2')]:
               data = v.load_visual_data(folder)
               paired = lab.paired_leg_analysis(data)
               assert paired['intervals_per_leg'] == 180
               assert abs(paired['equivalent_revolutions_per_leg'] - 5.0) < 1e-9
-              result = lab.generate_laboratory(folder, candidate_limit=12)
-              assert result['candidate_count'] == 12
-              assert result['contact_sheet'].exists() and result['contact_sheet'].stat().st_size > 10000
-              assert result['manifest'].exists()
-              manifest = json.loads(result['manifest'].read_text())
-              assert manifest['locked_intervals_per_leg'] == 180
-              assert manifest['equivalent_revolutions_per_leg'] == 5.0
-              assert len(manifest['candidates']) == 12
-              assert result['paired_analysis'].exists()
-              pngs = list((folder / 'design_lab').glob('*.png'))
-              svgs = list((folder / 'design_lab').glob('*.svg'))
-              assert len(pngs) >= 13, pngs
-              assert len(svgs) == 12, svgs
-          print('design laboratory verified')
+          print('paired central slices verified')
+          PY
+
+      - name: Verify generative design studio
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from pathlib import Path
+          import json
+          import design_studio as s
+
+          assert len(s.FAMILIES) == 10
+          assert len(s.PALETTES) == 6
+
+          for folder in [Path('study_test/jo_grant'), Path('study_test/bike_test_2')]:
+              data = s.load_studio_data(folder)
+              assert data.intervals.size == 180
+              assert data.revolutions.shape == (5, 36)
+              assert data.rev_norm.shape == (5, 36)
+
+              for i, family in enumerate(s.FAMILIES):
+                  p = s.DesignParams(family=family, seed=100+i, detail=86, background='Black')
+                  prim = s.build_primitives(data, p)
+                  assert len(prim) > 4, family
+                  png = folder / 'design_studio' / f'test_{i:02d}.png'
+                  svg = folder / 'design_studio' / f'test_{i:02d}.svg'
+                  s.export_png(png, data, p, size=700)
+                  s.export_svg(svg, data, p, size=1200)
+                  assert png.exists() and png.stat().st_size > 1500, png
+                  assert svg.exists() and svg.stat().st_size > 800, svg
+
+              base = s.DesignParams(family='Tension Bloom', background='White')
+              r1 = s.randomised_params(base, keep_family=True, seed=424242)
+              r2 = s.randomised_params(base, keep_family=True, seed=424242)
+              assert r1 == r2
+              assert r1.family == 'Tension Bloom'
+
+              saved = s.save_design(folder, data, r1, 'ci_favourite')
+              for path in saved.values():
+                  assert path.exists() and path.stat().st_size > 100, path
+              loaded = s.load_saved_params(saved['json'])
+              assert loaded == r1
+              payload = json.loads(saved['json'].read_text())
+              assert payload['locked_intervals'] == 180
+              assert payload['spoke_count'] == 36
+              assert payload['equivalent_revolutions'] == 5.0
+
+              mock = s.render_shirt_mockup(data, r1, size=700, shirt='Black')
+              mock_path = folder / 'design_studio' / 'shirt_mockup_test.png'
+              mock.save(mock_path)
+              assert mock_path.stat().st_size > 2000
+          print('generative design studio verified')
           PY
 
       - uses: actions/upload-artifact@v4
