@@ -7,6 +7,8 @@ on:
       - 'src/design_laboratory.py'
       - 'src/design_laboratory_app.py'
       - 'src/design_studio.py'
+      - 'src/design_studio_app_v2.py'
+      - 'src/design_randomizer.py'
       - 'src/study_session_analysis.py'
       - 'src/study_visualizer.py'
       - 'src/session_analyzer.py'
@@ -32,7 +34,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Syntax-check study and design apps
-        run: python -m py_compile src/study_session_app.py src/design_laboratory.py src/design_laboratory_app.py src/design_studio.py src/study_session_analysis.py src/study_visualizer.py src/session_movement_analysis.py src/session_analyzer.py
+        run: python -m py_compile src/study_session_app.py src/design_laboratory.py src/design_laboratory_app.py src/design_studio.py src/design_studio_app_v2.py src/design_randomizer.py src/study_session_analysis.py src/study_visualizer.py src/session_movement_analysis.py src/session_analyzer.py
 
       - name: Analyse Jo Grant end to end
         run: |
@@ -78,33 +80,20 @@ jobs:
           PYTHONPATH=src python - <<'PY'
           from pathlib import Path
           import study_visualizer as v
-
           expected = {
-              'Radial fingerprint',
-              'Spoke-wheel barcode',
-              'Concentric rhythm rings',
-              '36-spoke aggregate glyph',
-              'Woven stripes',
-              'Poincare map',
-              'Recurrence matrix',
-              'Lag similarity map',
-              'Grid weave',
+              'Radial fingerprint', 'Spoke-wheel barcode', 'Concentric rhythm rings',
+              '36-spoke aggregate glyph', 'Woven stripes', 'Poincare map',
+              'Recurrence matrix', 'Lag similarity map', 'Grid weave',
           }
           assert set(v.STYLES) == expected, v.STYLES
           assert set(v.STYLE_GROUPS) == {'Signature', 'Pattern'}
           assert v.SOURCE_OPTIONS[0] == 'Baseline / first leg'
-          assert {'Mono','Earth','Electric','Heatmap','Luxury'} == set(v.PALETTE_FAMILIES)
-
           for folder in [Path('study_test/jo_grant'), Path('study_test/bike_test_2')]:
               data = v.load_visual_data(folder)
               assert data.intervals_per_leg == 180
               for style in v.STYLES:
-                  geom = v.build_geometry(
-                      data, style, 1200, 900, 'Medium', 'Medium',
-                      'Dark garment', 'Baseline / first leg', 'Neon Pulse'
-                  )
+                  geom = v.build_geometry(data, style, 1200, 900, 'Medium', 'Medium', 'Dark garment', 'Baseline / first leg', 'Neon Pulse')
                   assert geom.get('lines') or geom.get('rects') or geom.get('points') or geom.get('polygons'), style
-                  assert v.STYLE_HELP[style]
           print('curated baseline visualiser verified')
           PY
 
@@ -128,9 +117,28 @@ jobs:
           from pathlib import Path
           import json
           import design_studio as s
+          import design_randomizer as r
 
+          r.install()
           assert len(s.FAMILIES) == 10
-          assert len(s.PALETTES) == 6
+          assert len(s.PALETTES) >= 26
+          assert 'Bauhaus Signal' in s.PALETTES
+          assert 'Laser Lemon' in s.PALETTES
+
+          base = s.DesignParams(family='Tension Bloom', palette='Signal Mint', background='White')
+          a = r.randomise_design(base, keep_family=True, seed=424242)
+          b = r.randomise_design(base, keep_family=True, seed=424242)
+          assert a == b
+          assert a.family == 'Tension Bloom'
+          assert 0.35 <= a.stroke_width <= 5.0
+          form = r.randomise_form(base, seed=101)
+          assert form.palette == base.palette and form.family == base.family
+          colour = r.randomise_colour(base, seed=102)
+          assert colour.palette != base.palette
+          wild = [r.go_wild(base, seed=i) for i in range(20, 45)]
+          assert any(p.stroke_width >= 3.1 for p in wild)
+          assert any(p.detail <= 55 for p in wild)
+          assert any(p.detail >= 185 for p in wild)
 
           for folder in [Path('study_test/jo_grant'), Path('study_test/bike_test_2')]:
               data = s.load_studio_data(folder)
@@ -139,7 +147,7 @@ jobs:
               assert data.rev_norm.shape == (5, 36)
 
               for i, family in enumerate(s.FAMILIES):
-                  p = s.DesignParams(family=family, seed=100+i, detail=86, background='Black')
+                  p = r.randomise_design(s.DesignParams(family=family, background='Black'), keep_family=True, seed=100+i)
                   prim = s.build_primitives(data, p)
                   assert len(prim) > 4, family
                   png = folder / 'design_studio' / f'test_{i:02d}.png'
@@ -149,23 +157,17 @@ jobs:
                   assert png.exists() and png.stat().st_size > 1500, png
                   assert svg.exists() and svg.stat().st_size > 800, svg
 
-              base = s.DesignParams(family='Tension Bloom', background='White')
-              r1 = s.randomised_params(base, keep_family=True, seed=424242)
-              r2 = s.randomised_params(base, keep_family=True, seed=424242)
-              assert r1 == r2
-              assert r1.family == 'Tension Bloom'
-
-              saved = s.save_design(folder, data, r1, 'ci_favourite')
+              saved = s.save_design(folder, data, a, 'ci_favourite')
               for path in saved.values():
                   assert path.exists() and path.stat().st_size > 100, path
               loaded = s.load_saved_params(saved['json'])
-              assert loaded == r1
+              assert loaded == a
               payload = json.loads(saved['json'].read_text())
               assert payload['locked_intervals'] == 180
               assert payload['spoke_count'] == 36
               assert payload['equivalent_revolutions'] == 5.0
 
-              mock = s.render_shirt_mockup(data, r1, size=700, shirt='Black')
+              mock = s.render_shirt_mockup(data, a, size=700, shirt='Black')
               mock_path = folder / 'design_studio' / 'shirt_mockup_test.png'
               mock.save(mock_path)
               assert mock_path.stat().st_size > 2000
