@@ -9,6 +9,8 @@ on:
       - 'src/design_studio.py'
       - 'src/design_studio_app_v2.py'
       - 'src/design_randomizer.py'
+      - 'src/transient_lab.py'
+      - 'src/transient_lab_app.py'
       - 'src/study_session_analysis.py'
       - 'src/study_visualizer.py'
       - 'src/session_analyzer.py'
@@ -34,7 +36,48 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Syntax-check study and design apps
-        run: python -m py_compile src/study_session_app.py src/design_laboratory.py src/design_laboratory_app.py src/design_studio.py src/design_studio_app_v2.py src/design_randomizer.py src/study_session_analysis.py src/study_visualizer.py src/session_movement_analysis.py src/session_analyzer.py
+        run: python -m py_compile src/study_session_app.py src/design_laboratory.py src/design_laboratory_app.py src/design_studio.py src/design_studio_app_v2.py src/design_randomizer.py src/transient_lab.py src/transient_lab_app.py src/study_session_analysis.py src/study_visualizer.py src/session_movement_analysis.py src/session_analyzer.py
+
+      - name: Verify acoustic click lab
+        run: |
+          PYTHONPATH=src python - <<'PY'
+          from pathlib import Path
+          import csv
+          import numpy as np
+          from scipy.io import wavfile
+          import transient_lab as t
+
+          # Synthetic full-scale test: seven clearly separated short transients.
+          sr = 44100
+          duration = 1.0
+          y = np.zeros(int(sr * duration), dtype=np.float64)
+          truth = np.array([0.08, 0.20, 0.32, 0.44, 0.56, 0.68, 0.80])
+          for j, ts in enumerate(truth):
+              i = int(ts * sr)
+              n = int(.010 * sr)
+              q = np.arange(n) / sr
+              burst = (.75 - .035*j) * np.sin(2*np.pi*(3400+80*j)*q) * np.exp(-q*450)
+              y[i:i+n] += burst
+          path = Path('study_test/synthetic_7_clicks.wav')
+          path.parent.mkdir(parents=True, exist_ok=True)
+          wavfile.write(path, sr, np.round(np.clip(y,-1,1)*32767).astype(np.int16))
+          audio = t.load_wav(path)
+          th, events = t.fit_threshold_for_count(audio, 7, 0, audio.duration_s, 35, 1200)
+          assert len(events) == 7, (th, len(events))
+          got = np.array([e.timestamp_seconds for e in events])
+          assert np.max(np.abs(got-truth)) < .012, (got, truth)
+          out = t.export_events_csv(Path('study_test/synthetic_7_clicks.csv'), events)
+          assert out.exists()
+          rows = list(csv.DictReader(out.open()))
+          assert len(rows) == 7
+
+          # The manually reviewed one-revolution clip contains 17 audible hits.
+          known = t.load_wav(Path('audio/One Revolution.wav'))
+          th17, ev17 = t.fit_threshold_for_count(known, 17, 0, known.duration_s, 25, 1200)
+          assert len(ev17) == 17, (th17, len(ev17))
+          assert all(ev17[i].timestamp_seconds < ev17[i+1].timestamp_seconds for i in range(16))
+          print('acoustic click lab verified', th, th17)
+          PY
 
       - name: Analyse Jo Grant end to end
         run: |
