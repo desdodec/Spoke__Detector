@@ -16,13 +16,19 @@ from transient_lab_app import App as BaseApp
 
 class App(BaseApp):
     def __init__(self) -> None:
-        self.scrub_time = tk.DoubleVar(value=0.0)
-        self.timecode = tk.StringVar(value="0.000 / 0.000 s")
+        # BaseApp creates the Tk root before it dispatches to our _build().
+        # Tk variables therefore have to be created in _build(), not before
+        # BaseApp.__init__(), otherwise Python 3.13 raises "Too early to create
+        # variable: no default root window".
         self._scrubbing = False
         self._resume_after_scrub = False
         super().__init__()
 
     def _build(self) -> None:
+        # At this point the Tk root exists, so these variables are safe to make.
+        self.scrub_time = tk.DoubleVar(master=self, value=0.0)
+        self.timecode = tk.StringVar(master=self, value="0.000 / 0.000 s")
+
         super()._build()
 
         # Keep the accepted layout intact. The scrubber sits directly beneath the
@@ -70,6 +76,7 @@ class App(BaseApp):
         # Everywhere else keeps the existing selection behaviour.
         if self.audio is not None and event.y <= 30:
             self.dragging = False
+            self.sel_start = self.sel_end = None
             self.seek_to(self._x_to_time(event.x))
 
     def _scrub_start(self, _event=None) -> None:
